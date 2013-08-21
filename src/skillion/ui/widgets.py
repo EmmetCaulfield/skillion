@@ -2,11 +2,10 @@
    roofline based on hardware events"""
 
 import sys
+import math
 
-from PyQt4 import QtCore
 from PyQt4 import QtGui
 
-import math
 import numpy
 import matplotlib
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
@@ -39,16 +38,16 @@ class SkPlotWidget(FigureCanvas):
         self.mpl_connect('pick_event', self.onPick)
 
 
-    def addPoint(self, id, x, y, callback):
+    def addPoint(self, pid, x, y, callback):
         l=self._axes.plot(x, y, 'o', picker=5)[0]
-        self._lines[id] = l
+        self._lines[pid] = l
         l.skCallback = callback
         self.draw()
         return ColorConverter.to_rgb(l.get_color())
 
 
-    def removePoint(self, id):
-        l = self._lines.pop(id)
+    def removePoint(self, pid):
+        l = self._lines.pop(pid)
         self._axes.lines.remove(l)
         del l
         self.draw()
@@ -204,10 +203,10 @@ class SkPlotWidget(FigureCanvas):
 #        self.mpl_connect('motion_notify_event', self.on_mousemove)
 
 
-    def on_mousemove(self, evt):
+#    def on_mousemove(self, evt):
         # The event received here is of the type
         # matplotlib.backend_bases.MouseEvent
-        msg = "({},{}), ({:.4},{:.4})".format(int(evt.x), int(evt.y), evt.xdata, evt.ydata)
+#        msg = "({},{}), ({:.4},{:.4})".format(int(evt.x), int(evt.y), evt.xdata, evt.ydata)
 #        self.statusBar().showMessage( msg )
 
 
