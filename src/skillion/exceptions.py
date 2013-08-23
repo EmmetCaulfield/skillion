@@ -9,3 +9,6 @@ class SkError(Exception):
 
 class SkAbstractMethodCalled(SkError):
     pass
+
+class SkImpossibleIndexCondition(SkError):
+    pass

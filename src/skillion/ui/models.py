@@ -133,6 +133,7 @@ class SkTreeModel(QtCore.QAbstractItemModel):
 #        self.endInsertColumns()
         self.endResetModel()
 
+
     def _getSkNode(self, index):
         node = False
         if index.isValid():

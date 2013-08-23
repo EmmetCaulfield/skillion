@@ -38,6 +38,7 @@ class SkColumnFormula(object):
 
     def _process(self, formula, dataKeys):
         """Returns a copy of 'formula' with c-like identifiers replaced with dict elements"""
+        self._text = formula
         bits = SkColumnFormula.RE_CID.split(formula)
         if bits[0] or bits[2]!='=':
             raise SkFormulaSyntaxError('Expected "<label>=..."')
@@ -46,7 +47,7 @@ class SkColumnFormula(object):
         for i in range(len(token)):
             if token[i] in dataKeys:
                 self._needkeys.append( token[i] )
-                token[i] = "self.getData('" + token[i] +"')"
+                token[i] = "self.getData('" + token[i] +"',True)"
         self._expression = ''.join(token)
 
     def label(self):
@@ -152,7 +153,7 @@ class SkNode(object):
     def hasKey(self, key):
         return key in self._data or key in self._formulas
 
-    def getData(self, key):
+    def getData(self, key, calculationMode=False):
         if key not in self._data:
             # In any case, if we can compute a value, it's OK to cache it, since
             # the underlying data is entirely static.
@@ -167,13 +168,17 @@ class SkNode(object):
                         # Avoid recursion
                         doEval = False
                         break
-                    if self.getData(k) is None:
-                        # A value required by the formula expression is None
-                        doEval = False
-                        break
+# This is now moot in calculation mode
+#                    if self.getData(k, True) is None:
+#                        # A value required by the formula expression is None
+#                        doEval = False
+#                        break
                 if doEval:
-                    self._data[key] = eval( formula.expression() )
-                    return self._data[key]
+                    value = eval( formula.expression() )
+                    if value == 0:
+                        value = None
+                    self._data[key] = value
+                    return value
 
             # If we get to here, we have no formula, or the formula didn't work out,
             # so we see if we can aggregate the values from children:
@@ -187,10 +192,15 @@ class SkNode(object):
             else:
                 self._data[key] = None
 
+        if calculationMode:
+            if self._data[key] is None:
+                return 0
         return self._data[key]
+
 
     def setData(self, key, value):
         self._data[key] = value
+
 
     def getFormula(self, key):
         if key in self._formulas:

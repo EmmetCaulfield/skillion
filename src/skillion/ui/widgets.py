@@ -210,6 +210,16 @@ class SkPlotWidget(FigureCanvas):
 #        self.statusBar().showMessage( msg )
 
 
+class SkTreeViewHeaderContextMenu(QtGui.QMenu):
+    def __init__(self, parent):
+        super(SkTreeViewHeaderContextMenu,self).__init__(parent)
+        self.addAction(parent.actionAdd_computed_column)
+        self.addAction(parent.actionHide_column)
+
+#    def exec_(self, QtCore.Qt.QModelIndex qmi):
+
+
+
 def main():
     app = QtGui.QApplication(sys.argv)
     form = SkPlotWidget()

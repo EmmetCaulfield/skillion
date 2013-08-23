@@ -345,10 +345,22 @@
     <property name="title">
      <string>&amp;View</string>
     </property>
-    <addaction name="actionShow_kernel_modules"/>
-    <addaction name="actionShow_system_libraries"/>
-    <addaction name="actionShow_relocation_stubs"/>
-    <addaction name="actionShow_reserved_symbols"/>
+    <widget class="QMenu" name="menuShow_hide_rows">
+     <property name="title">
+      <string>Show/hide &amp;rows</string>
+     </property>
+     <addaction name="actionShow_kernel_modules"/>
+     <addaction name="actionShow_system_libraries"/>
+     <addaction name="actionShow_reserved_symbols"/>
+     <addaction name="actionShow_relocation_stubs"/>
+    </widget>
+    <widget class="QMenu" name="menuShow_hide_columns">
+     <property name="title">
+      <string>Show/hide &amp;columns</string>
+     </property>
+    </widget>
+    <addaction name="menuShow_hide_rows"/>
+    <addaction name="menuShow_hide_columns"/>
     <addaction name="actionAdd_computed_column"/>
    </widget>
    <widget class="QMenu" name="uiMenuHelp">
@@ -439,6 +451,19 @@
    </property>
    <property name="toolTip">
     <string>About Skillion</string>
+   </property>
+  </action>
+  <action name="actionHide_column">
+   <property name="text">
+    <string>&amp;Hide this column</string>
+   </property>
+   <property name="toolTip">
+    <string>Hide this column</string>
+   </property>
+  </action>
+  <action name="actionShow_system_libraries_2">
+   <property name="text">
+    <string>Show system libraries</string>
    </property>
   </action>
  </widget>

@@ -1,16 +1,10 @@
-'''
-Created on Aug 21, 2013
-
-@author: emmet
-'''
-
 import math
 
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
 from models import SkSortFilterProxyModel
-
+from widgets import SkTreeViewHeaderContextMenu
 
 class SkController(object):
     def __init__(self, model, view):
@@ -20,6 +14,9 @@ class SkController(object):
         self._view  = view
         self._proxyModel = SkSortFilterProxyModel()
         self._proxyModel.setSourceModel(model)
+        self._popupMenu = SkTreeViewHeaderContextMenu(view)
+        self._dynamicActions = {}
+        
         tv = view.uiTreeView
         tv.setModel(self._proxyModel)
         tv.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
@@ -67,6 +64,20 @@ class SkController(object):
             tv.setColumnWidth(i,80)
 
 
+    def _addColumnAction(self, col):
+        label = self._model.headerData(col, None, QtCore.Qt.DisplayRole)
+        action = QtGui.QAction(self._view)
+        if col<10:
+            action.setText("Show column &%d (%s)" % (col,label))
+        else:
+            action.setText("Show column %d (%s)" % (col,label))
+        action.setCheckable(True)
+        action.setChecked(True)
+        action.setData(col)
+        action.toggled.connect(lambda:self.setColumnVisibility(action))
+        self._view.menuShow_hide_columns.addAction(action)        
+
+
     def connectViewMenu(self):
         v = self._view
         QtCore.QObject.connect(v.actionShow_kernel_modules,   QtCore.SIGNAL('triggered()'), self.updateShowFlags)
@@ -74,15 +85,40 @@ class SkController(object):
         QtCore.QObject.connect(v.actionShow_relocation_stubs, QtCore.SIGNAL('triggered()'), self.updateShowFlags)
         QtCore.QObject.connect(v.actionShow_reserved_symbols, QtCore.SIGNAL('triggered()'), self.updateShowFlags)
         QtCore.QObject.connect(v.actionAdd_computed_column,   QtCore.SIGNAL('triggered()'), self.addComputedColumn)
+        for col in range(3, self._model.columnCount()):
+            self._addColumnAction(col)
+
+        QtCore.QObject.connect(v.actionHide_column,           QtCore.SIGNAL('triggered()'), self.hideThisColumn)
         QtCore.QObject.connect(v.uiTreeView, QtCore.SIGNAL('customContextMenuRequested(QPoint)'), self.showTreeContextMenu)
         v.uiTreeView.header().setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         QtCore.QObject.connect(v.uiTreeView.header(), QtCore.SIGNAL('customContextMenuRequested(QPoint)'), self.showTreeHeaderMenu)
 
 
+    def setColumnVisibility(self, action):
+        assert isinstance(action, QtGui.QAction)
+        column = action.data().toInt()[0]
+        if action.isChecked():
+            self._view.uiTreeView.header().showSection(column)
+        else:
+            self._view.uiTreeView.header().hideSection(column)
+
+
+    def hideThisColumn(self):
+        column = self._view.uiTreeView.indexAt(self._popupCoords).column()
+        action = self._view.menuShow_hide_columns.actions()[column-self._model.NONDATA_COLUMN_COUNT]
+        assert column == action.data().toInt()[0], "Column numbers cannot differ"
+        action.setChecked(False)
+
+
     def addComputedColumn(self):
         qstr,ok = QtGui.QInputDialog.getText(self._view, 'Input Formula', 'Formula:')
-        if ok:
-            self._model.addColumnFormula(str(qstr))
+        if not ok:
+            return False
+        # FIXME: dumb ad-hoc way of checking that adding the formula succeeded
+        cc = self._model.columnCount()
+        self._model.addColumnFormula(str(qstr))
+        if cc+1 == self._model.columnCount():
+            self._addColumnAction(cc)
 
 
     def connectModelCheckboxes(self):
@@ -91,10 +127,7 @@ class SkController(object):
 
 
     def checkBoxToggle(self, topLeftIndex, bottomRightIndex):
-        if topLeftIndex != bottomRightIndex:
-            print "Yikes!"
-            return None
-
+        assert topLeftIndex == bottomRightIndex, "Indices cannot differ here"
         index = topLeftIndex
         if not index.isValid():
             return None
@@ -109,9 +142,7 @@ class SkController(object):
 
         if not x or not y:
             skNode.setChecked(False)
-            QtGui.QMessageBox( QtGui.QMessageBox.Warning, "Skillion Warning",
-                "Symbol '{}' has no value for checked plot event '{}'.".format(skNode.label(),yev if x else xev)).exec_()
-            return None
+            return self.warn("Symbol '{}' has no value for checked plot event '{}'.".format(skNode.label(),yev if x else xev))
 
         # HACK: Work around not being able to get QtCore.pyqtSignal() to work in SkPlotWidget
         if skNode.isChecked():
@@ -120,6 +151,11 @@ class SkController(object):
         else:
             skNode.setColor( None )
             self._view.mplWidget.removePoint( skNode.getPath() )
+
+
+    def warn(self, msg, level=QtGui.QMessageBox.Warning):
+        QtGui.QMessageBox( level, "Skillion Warning", msg ).exec_()
+        return None
 
 
     def updateShowFlags(self):
@@ -285,13 +321,13 @@ class SkController(object):
 
 
 
-
     def showTreeContextMenu(self, wxy):
         index = self._view.uiTreeView.indexAt(wxy)
         print "Body ctx", wxy, index.row(), index.column()
 
+
     def showTreeHeaderMenu(self, wxy):
-        pmi = self._view.uiTreeView.indexAt(wxy)
-        smi = self._proxyModel.mapToSource(pmi)
-        lbl = self._model.headerData(smi.column(), None, QtCore.Qt.DisplayRole)
-        print "Header ctx", wxy, lbl
+        self._popupCoords = wxy
+        self._popupMenu.exec_(self._view.uiTreeView.mapToGlobal(wxy))
+        
+        
