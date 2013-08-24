@@ -1,5 +1,7 @@
 # When subclassing QAbstractItemModel, at the very least you must implement index(), parent(), rowCount(), columnCount(), and data().
 
+import re
+
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 
@@ -10,7 +12,7 @@ class SkTreeModel(QtCore.QAbstractItemModel):
     TREE_COLUMN = 0
     TYPE_COLUMN = 1
     PLOT_COLUMN = 2
-    # Expandable tree + row type + check mark (for plotting)
+    # Expandable tree + node type + check mark (for plotting)
     NONDATA_COLUMN_COUNT = 3
 
     def __init__(self, arg, parent=None):
@@ -60,9 +62,9 @@ class SkTreeModel(QtCore.QAbstractItemModel):
 
         if role == QtCore.Qt.DisplayRole:
             if col == SkTreeModel.TREE_COLUMN:
-                return skNode.label()
+                return skNode.label
             if col == SkTreeModel.TYPE_COLUMN:
-                return skNode.type()
+                return '[ERROR]'
             if col == SkTreeModel.PLOT_COLUMN:
                 return None
             else:
@@ -142,15 +144,57 @@ class SkTreeModel(QtCore.QAbstractItemModel):
 
 
 
+class SkFilter(QtCore.QObject):
+    toggled = QtCore.pyqtSignal()
+
+    def __init__(self, klass, attr, regex, name, plural=None):
+        super(SkFilter,self).__init__()
+        self.klass = klass
+        self.attr  = attr
+        self.regex = re.compile(regex)
+        self.name  = name
+        if plural is None:
+            self.plural = name + 's'
+        else:
+            self.plural = plural
+        self.isActive = True
+
+        
+    def setActive(self, active):
+        if self.isActive == active:
+            return
+        self.isActive = active
+        self.toggled.emit()
+
+
 
 class SkSortFilterProxyModel(QtGui.QSortFilterProxyModel):
     def __init__(self, parent=None):
         super(SkSortFilterProxyModel, self).__init__(parent)
+        self._filterSet = {}
 
-        self._showKernelModules   = True
-        self._showSystemLibraries = True
-        self._showRelocationStubs = True
-        self._showReservedSymbols = True
+
+    def addFilter(self, filter_):
+        assert isinstance(filter_, SkFilter)
+        if filter_.klass not in self._filterSet:
+            self._filterSet[filter_.klass] = []
+        self._filterSet[filter_.klass].append(filter_)
+        filter_.toggled.connect(self.invalidateFilter)
+
+
+    def findFilter(self, skNode, activeOnly=True):
+        if type(skNode) not in self._filterSet:
+            return None
+
+        match = None
+        for f in self._filterSet[type(skNode)]:
+            if activeOnly and f.isActive:
+                continue
+            if f.regex.search(skNode.__dict__[f.attr]):
+                match = f
+                break   
+        return match     
+
 
     def filterAcceptsRow(self, row, parent):
         skNode = parent.internalPointer()
@@ -158,24 +202,25 @@ class SkSortFilterProxyModel(QtGui.QSortFilterProxyModel):
             return True
         skNode = skNode.getChild(row)
 
-        if not self._showKernelModules and skNode.isaKernelModule():
-            return False
-        if not self._showSystemLibraries and skNode.isaSystemLibrary():
-            return False
-        if not self._showRelocationStubs and skNode.isaRelocationStub():
-            return False
-        if not self._showReservedSymbols and skNode.isaReservedSymbol():
-            return False
-        return True
+        match = self.findFilter(skNode, activeOnly=True)
 
-    def showKernelModules(self, show):
-        self._showKernelModules = show
+        if match is None:
+            return True
+        
+        return False
+    
+    
+    def data(self, index, role):
+        smi = self.mapToSource(index)
+        if not smi.isValid():
+            return None
 
-    def showSystemLibraries(self, show):
-        self._showSystemLibraries = show
-
-    def showRelocationStubs(self, show):
-        self._showRelocationStubs = show
-
-    def showReservedSymbols(self, show):
-        self._showReservedSymbols = show
+        if smi.column() != SkTreeModel.TYPE_COLUMN:
+            return self.sourceModel().data(smi, role)
+        
+        if role != QtCore.Qt.DisplayRole:
+            return None
+        
+        match = self.findFilter(smi.internalPointer(), activeOnly=False)
+        if match is not None:
+            return match.name

@@ -3,7 +3,8 @@ import math
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
-from models import SkSortFilterProxyModel
+from models import SkSortFilterProxyModel, SkFilter
+from skillion.tree import SkLibraryNode, SkFunctionNode
 from widgets import SkTreeViewHeaderContextMenu
 
 class SkController(object):
@@ -24,6 +25,8 @@ class SkController(object):
         tv.setSortingEnabled(True)
         tv.setUniformRowHeights(True)
 
+        self.setupRowFilters()
+
         self.connectTreeView()
         self.connectViewMenu()
         self.connectModelCheckboxes()
@@ -40,6 +43,50 @@ class SkController(object):
 # Plot clicks are connected with a HACK
 #    def connectPlotClick(self):
 #        QtCore.QObject.connect(self._view.mplWidget, QtCore.SIGNAL('pointClicked(QModelIndex)'), self.plotClicked)
+
+    def setupRowFilters(self):
+        p = self._proxyModel
+
+        f = SkFilter( SkLibraryNode,  'label', r'\.ko$',                     'kernel module')
+        p.addFilter(f)
+        self._addRowAction(f)
+
+        f = SkFilter( SkLibraryNode,  'label', r'\.so(?:\.\d+){0,3}$',       'shared library', 'shared libraries')
+        p.addFilter(f)
+        self._addRowAction(f)
+        
+        f = SkFilter( SkLibraryNode,  'name',  r'^/lib/',                    'system library', 'system libraries')
+        p.addFilter(f)
+        self._addRowAction(f)
+
+        f = SkFilter( SkLibraryNode,  'name',  r'/(?:usr/(?:local/)?)?bin/', 'installed binary', 'installed binaries')
+        p.addFilter(f)
+        self._addRowAction(f)
+
+        f = SkFilter( SkLibraryNode,  'label', r'^\[kernel.kallsyms\]$',     'kernel symbol')
+        p.addFilter(f)
+        self._addRowAction(f)
+        
+        f = SkFilter( SkLibraryNode,  'label', r'^\[vdso\]$',                'virtual DSO')
+        p.addFilter(f)
+        self._addRowAction(f)
+
+        f = SkFilter( SkFunctionNode, 'label', r'@plt$',                     'relocation stub')
+        p.addFilter(f)
+        self._addRowAction(f)
+
+        f = SkFilter( SkFunctionNode, 'label', r'\.isra\.\d+$',              'parameter-optimized function')
+        p.addFilter(f)
+        self._addRowAction(f)
+
+        f = SkFilter( SkFunctionNode, 'label', r'^_[A-Z_]',                  'reserved symbol')
+        p.addFilter(f)
+        self._addRowAction(f)
+
+        f = SkFilter( SkFunctionNode, 'label', r'^\[unknown\]$',             'unattributable count')
+        p.addFilter(f)
+        self._addRowAction(f)
+        
 
 
     # The index passed in here is, in this case, a source model index
@@ -78,6 +125,17 @@ class SkController(object):
         self._view.menuShow_hide_columns.addAction(action)        
 
 
+    def _addRowAction(self, filter_):
+        action = QtGui.QAction(self._view)
+        action.setText("Show " + filter_.plural)
+        action.setCheckable(True)
+        action.setChecked(True)
+        action.setData(filter_)
+        action.toggled.connect(lambda:self.setRowVisibility(action))
+        self._view.menuShow_hide_rows.addAction(action)        
+
+
+
     def connectViewMenu(self):
         v = self._view
         QtCore.QObject.connect(v.actionShow_kernel_modules,   QtCore.SIGNAL('triggered()'), self.updateShowFlags)
@@ -101,6 +159,14 @@ class SkController(object):
             self._view.uiTreeView.header().showSection(column)
         else:
             self._view.uiTreeView.header().hideSection(column)
+
+
+    def setRowVisibility(self, action):
+        assert isinstance(action, QtGui.QAction)
+        filter_ = action.data().toPyObject()
+        filter_.setActive(action.isChecked())
+#        self._proxyModel.setFilterActive(label, action.isChecked())
+        
 
 
     def hideThisColumn(self):
@@ -142,7 +208,7 @@ class SkController(object):
 
         if not x or not y:
             skNode.setChecked(False)
-            return self.warn("Symbol '{}' has no value for checked plot event '{}'.".format(skNode.label(),yev if x else xev))
+            return self.warn("Symbol '{}' has no value for checked plot event '{}'.".format(skNode.label, yev if x else xev))
 
         # HACK: Work around not being able to get QtCore.pyqtSignal() to work in SkPlotWidget
         if skNode.isChecked():

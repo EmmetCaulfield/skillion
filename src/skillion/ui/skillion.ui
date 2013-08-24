@@ -349,10 +349,6 @@
      <property name="title">
       <string>Show/hide &amp;rows</string>
      </property>
-     <addaction name="actionShow_kernel_modules"/>
-     <addaction name="actionShow_system_libraries"/>
-     <addaction name="actionShow_reserved_symbols"/>
-     <addaction name="actionShow_relocation_stubs"/>
     </widget>
     <widget class="QMenu" name="menuShow_hide_columns">
      <property name="title">

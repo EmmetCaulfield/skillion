@@ -84,7 +84,8 @@ class SkNode(object):
     def __init__(self, name):
         super(SkNode, self).__init__()
 
-        self._name     = name
+        self.name      = name
+        self.label     = name
         self._parent   = None
         self._children = []
         self._data      = {}
@@ -94,27 +95,16 @@ class SkNode(object):
         self._color = None
         self._ischecked = False
 
-#    @classmethod:
-#    def clone(cls):
-
-    def name(self):
-        return self._name
-
-    def label(self):
-        return self._name
-
-    def type(self):
-        return 'BASE'
 
     def getPath(self):
         if self._parent:
-            return self._parent.getPath() +'/'+ self.label()
+            return self._parent.getPath() +'/'+ self.label
         else:
             return ''
 
     def appendChild(self, node):
         self._children.append(node)
-        if node.label() == self.label():
+        if node.label == self.label:
             node._parentHasSameLabel = True
         node._parent = self
 
@@ -137,18 +127,6 @@ class SkNode(object):
 
     def childCount(self):
         return len(self._children)
-
-    def isaKernelModule(self):
-        return False
-
-    def isaSystemLibrary(self):
-        return False
-
-    def isaRelocationStub(self):
-        return False
-
-    def isaReservedSymbol(self):
-        return False
 
     def hasKey(self, key):
         return key in self._data or key in self._formulas
@@ -209,6 +187,7 @@ class SkNode(object):
             return self._parent.getFormula(key)
         return None
 
+
     def setFormula(self, key, formula):
         self._formulas[key] = formula
         if key not in self._keys:
@@ -217,6 +196,7 @@ class SkNode(object):
 
     def setTimestamp(self, key, value):
         self._timestamp[key] = value
+
 
     def getTimestamp(self, key):
         if key not in self._timestamp:
@@ -251,7 +231,7 @@ class SkNode(object):
         tabLevel += 1
         while range(tabLevel):
             s += '    '
-        s += "`---" + self._name + '    ' + str(self._data) + '\n'
+        s += "`---" + self.name + '    ' + str(self._data) + '\n'
         for node in self._children:
             s += node.prettyPrint(tabLevel)
         tabLevel -= 1
@@ -273,9 +253,6 @@ class SkTree(SkNode):
     def __init__(self, name):
         super(SkTree, self).__init__(name)
         self._keys = []
-
-    def type(self):
-        return 'ROOT'
 
     def appendKey(self, key):
         self._keys.append(key)
@@ -302,87 +279,19 @@ class SkCommandNode(SkNode):
     def __init__(self, name):
         super(SkCommandNode, self).__init__(name)
 
-    def type(self):
-        return 'Command'
-
 
 class SkLibraryNode(SkNode):
-    KO_RE = re.compile(r'\.ko$')
-    SO_RE = re.compile(r'\.so(?:\.\d+){0,3}$')
-    SYS_RE = re.compile(r'^/lib/')
-    BIN_RE = re.compile(r'/(?:usr/(?:local/)?)?bin/')
 
     def __init__(self, name):
         super(SkLibraryNode, self).__init__(name)
-        self._label = os.path.basename(name)
+        self.label = os.path.basename(name)
 #        print("'%s'" % name)
-        self._isaKo   = bool(SkLibraryNode.KO_RE.search(name))
-        self._isaSo   = bool(SkLibraryNode.SO_RE.search(name))
-        self._isSys   = bool(SkLibraryNode.SYS_RE.search(name))
-        self._isBin   = bool(SkLibraryNode.BIN_RE.search(name))
-        self._isKern  = name == '[kernel.kallsyms]'
-        self._isaVdso = name == '[vdso]'
-
-    def type(self):
-        if self._isaKo:
-            return 'Kernel module'
-        if self._isaSo:
-            if self._isSys:
-                return 'System library'
-            return 'Dynamic library'
-        if self._isKern:
-            return 'Linux kernel'
-        if self._isaVdso:
-            return 'Virtual DSO'
-        if self._parentHasSameLabel:
-            return 'Command binary'
-        if self._isBin:
-            return 'Binary executed'
-        return 'Module'
-
-    def label(self):
-        return self._label
-
-    def isaKernelModule(self):
-        return self._isaKo
-
-    def isaSystemLibrary(self):
-        return self._isSys and self._isaSo
 
 
 class SkFunctionNode(SkNode):
-    PLT_RE  = re.compile(r'@plt$')
-    ISRA_RE = re.compile(r'\.isra\.\d+$')
-    RSVD_RE = re.compile(r'^_[A-Z_]')
-
     def __init__(self, name):
         if not name:
             name = '[unknown]'
 
         super(SkFunctionNode, self).__init__(name)
-
-        self._isaPlt  = bool(SkFunctionNode.PLT_RE.search(name))
-        self._isaIsra = bool(SkFunctionNode.ISRA_RE.search(name))
-        self._isRsrvd = bool(SkFunctionNode.RSVD_RE.search(name))
-        self._unknown = name == "[unknown]"
-
-
-    def type(self):
-        if self._isaPlt:
-            return 'Relocation stub'
-        if self._isaIsra:
-            return 'GCC optimization'
-        if self._unknown:
-            return 'Any function in module'
-        if self._isRsrvd:
-            return 'Reserved symbol'
-
-        return 'Function'
-
-
-    def isaRelocationStub(self):
-        return self._isaPlt
-
-    def isaReservedSymbol(self):
-        return self._isRsrvd
 
