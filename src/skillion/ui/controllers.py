@@ -47,15 +47,15 @@ class SkController(object):
     def setupRowFilters(self):
         p = self._proxyModel
 
-        f = SkFilter( SkLibraryNode,  'label', r'\.ko$',                     'kernel module')
+        f = SkFilter( SkLibraryNode,  'label', r'\.ko$',                     'kernel module', show=False)
+        p.addFilter(f)
+        self._addRowAction(f)
+
+        f = SkFilter( SkLibraryNode,  'name',  r'^/lib/',                    'system library', 'system libraries', show=False)
         p.addFilter(f)
         self._addRowAction(f)
 
         f = SkFilter( SkLibraryNode,  'label', r'\.so(?:\.\d+){0,3}$',       'shared library', 'shared libraries')
-        p.addFilter(f)
-        self._addRowAction(f)
-        
-        f = SkFilter( SkLibraryNode,  'name',  r'^/lib/',                    'system library', 'system libraries')
         p.addFilter(f)
         self._addRowAction(f)
 
@@ -63,15 +63,15 @@ class SkController(object):
         p.addFilter(f)
         self._addRowAction(f)
 
-        f = SkFilter( SkLibraryNode,  'label', r'^\[kernel.kallsyms\]$',     'kernel symbol')
+        f = SkFilter( SkLibraryNode,  'label', r'^\[kernel.kallsyms\]$',     'kernel symbol', show=False)
         p.addFilter(f)
         self._addRowAction(f)
         
-        f = SkFilter( SkLibraryNode,  'label', r'^\[vdso\]$',                'virtual DSO')
+        f = SkFilter( SkLibraryNode,  'label', r'^\[vdso\]$',                'virtual DSO', show=False)
         p.addFilter(f)
         self._addRowAction(f)
 
-        f = SkFilter( SkFunctionNode, 'label', r'@plt$',                     'relocation stub')
+        f = SkFilter( SkFunctionNode, 'label', r'@plt$',                     'relocation stub', show=False)
         p.addFilter(f)
         self._addRowAction(f)
 
@@ -79,7 +79,7 @@ class SkController(object):
         p.addFilter(f)
         self._addRowAction(f)
 
-        f = SkFilter( SkFunctionNode, 'label', r'^_[A-Z_]',                  'reserved symbol')
+        f = SkFilter( SkFunctionNode, 'label', r'^_[A-Z_]',                  'reserved symbol', show=False)
         p.addFilter(f)
         self._addRowAction(f)
 
@@ -96,6 +96,7 @@ class SkController(object):
             tsm = self._view.uiTreeView.selectionModel()
             tsm.select(pmi, QtGui.QItemSelectionModel.ClearAndSelect | QtGui.QItemSelectionModel.Rows)
 #        print index.internalPointer().getPath()
+
 
     def connectTreeView(self):
         QtCore.QObject.connect(self._view.uiTreeView, QtCore.SIGNAL('expanded(QModelIndex)'), self.sizeTreeView)
@@ -129,7 +130,7 @@ class SkController(object):
         action = QtGui.QAction(self._view)
         action.setText("Show " + filter_.plural)
         action.setCheckable(True)
-        action.setChecked(True)
+        action.setChecked(filter_.isActive)
         action.setData(filter_)
         action.toggled.connect(lambda:self.setRowVisibility(action))
         self._view.menuShow_hide_rows.addAction(action)        

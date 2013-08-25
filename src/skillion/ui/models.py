@@ -5,7 +5,7 @@ import re
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 
-from skillion.tree import SkTree, SkColumnFormula
+from skillion.tree import SkTree, SkColumnFormula, SkCommandNode, SkLibraryNode, SkFunctionNode
 
 
 class SkTreeModel(QtCore.QAbstractItemModel):
@@ -147,7 +147,7 @@ class SkTreeModel(QtCore.QAbstractItemModel):
 class SkFilter(QtCore.QObject):
     toggled = QtCore.pyqtSignal()
 
-    def __init__(self, klass, attr, regex, name, plural=None):
+    def __init__(self, klass, attr, regex, name, plural=None, show=True):
         super(SkFilter,self).__init__()
         self.klass = klass
         self.attr  = attr
@@ -157,7 +157,7 @@ class SkFilter(QtCore.QObject):
             self.plural = name + 's'
         else:
             self.plural = plural
-        self.isActive = True
+        self.isActive = show
 
         
     def setActive(self, active):
@@ -215,6 +215,7 @@ class SkSortFilterProxyModel(QtGui.QSortFilterProxyModel):
         if not smi.isValid():
             return None
 
+        # We only use the proxy model data for the "type" column:
         if smi.column() != SkTreeModel.TYPE_COLUMN:
             return self.sourceModel().data(smi, role)
         
@@ -223,4 +224,20 @@ class SkSortFilterProxyModel(QtGui.QSortFilterProxyModel):
         
         match = self.findFilter(smi.internalPointer(), activeOnly=False)
         if match is not None:
-            return match.name
+            return match.name.capitalize()
+        
+        t = type(smi.internalPointer())
+        if t == SkFunctionNode:
+            return 'Vanilla function'
+        if t == SkLibraryNode:
+            if smi.internalPointer().isJunior():
+                return 'Vanilla binary'
+            return 'Vanilla module'
+        if t == SkCommandNode:
+            return 'Vanilla command'
+        
+
+        
+        
+        
+

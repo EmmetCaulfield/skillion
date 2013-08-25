@@ -1,9 +1,3 @@
-'''
-Created on Aug 21, 2013
-
-@author: emmet
-'''
-
 from PyQt4 import QtSql
 from PyQt4 import QtCore
 

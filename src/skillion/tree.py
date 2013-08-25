@@ -108,6 +108,11 @@ class SkNode(object):
             node._parentHasSameLabel = True
         node._parent = self
 
+
+    def isJunior(self):
+        return self._parentHasSameLabel
+
+
     def insertChild(self, pos, node):
         self._children.insert(pos,  node)
 
