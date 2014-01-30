@@ -335,6 +335,7 @@
      <string>&amp;File</string>
     </property>
     <addaction name="actionOpen"/>
+    <addaction name="actionMerge"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
@@ -373,6 +374,9 @@
   <action name="actionOpen">
    <property name="text">
     <string>&amp;Open</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
   </action>
   <action name="actionQuit">
@@ -460,6 +464,17 @@
   <action name="actionShow_system_libraries_2">
    <property name="text">
     <string>Show system libraries</string>
+   </property>
+  </action>
+  <action name="actionMerge">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Merge</string>
+   </property>
+   <property name="toolTip">
+    <string>Merge a file into the current dataset.</string>
    </property>
   </action>
  </widget>

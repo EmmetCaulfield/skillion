@@ -120,7 +120,8 @@ def set_perf_home():
         kVer=[kernel_version(False), kernel_version(True)]
         places=['/usr/src/linux-{}/tools/perf',
                 '/usr/src/linux-headers-{}/tools/perf',
-                '/opt/src/linux-{}/tools/perf']
+                '/opt/src/linux-{}/tools/perf',
+                '/usr/local/libexec/perf-core']
         for p in places:
             for k in kVer:
                 home=p.format( k )
@@ -190,8 +191,8 @@ def create_indexes_and_views(dbfile=PERF_DB_PATH):
             CREATE TABLE dsos AS SELECT DISTINCT dso AS name, NULL AS label, NULL AS magic FROM event;
             UPDATE dsos SET label=basename(name), magic=filetype(name);
             CREATE TABLE hierView AS
-                SELECT e.comm AS comm, e.dso AS dso, e.symbol AS symbol, e.name AS event,
-                        d.label AS label, d.magic AS filetype, COUNT(*) AS tally, MIN(tsc) AS tsc
+                SELECT e.comm AS comm, e.dso AS dso, e.symbol AS symbol, e.name AS event, d.label AS label,
+                       d.magic AS filetype, SUM(period) AS tally, COUNT(*) AS samples, MIN(tsc) AS tsc
                     FROM event e, dsos d
                     WHERE e.dso = d.name
             GROUP BY e.comm, e.dso, e.symbol, event, label, filetype;
@@ -200,7 +201,7 @@ def create_indexes_and_views(dbfile=PERF_DB_PATH):
     else:
         sql = """
             CREATE TABLE hierView AS
-              SELECT comm, dso, symbol, name AS event, COUNT(*) AS tally, MIN(tsc) AS tsc
+              SELECT comm, dso, symbol, name AS event, SUM(period) AS tally, COUNT(*) AS samples, MIN(tsc) AS tsc
                 FROM event
                 GROUP BY comm, dso, symbol, event;
         """
@@ -212,7 +213,8 @@ def create_indexes_and_views(dbfile=PERF_DB_PATH):
         CREATE INDEX hierview_event_idx  ON hierview(event);
         CREATE TABLE unique_comms   AS SELECT DISTINCT comm   AS name FROM hierView;
         CREATE TABLE unique_symbols AS SELECT DISTINCT symbol AS name FROM hierView;
-        CREATE TABLE unique_events  AS SELECT DISTINCT event  AS name FROM hierView;
+        CREATE TABLE unique_events  AS SELECT DISTINCT event  AS name, SUM(tally) AS events, 
+            SUM(samples) AS samples FROM hierView GROUP BY name;
         CREATE TABLE unique_dsos    AS SELECT DISTINCT dso    AS name FROM hierView;
     """
 

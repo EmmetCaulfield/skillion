@@ -3,19 +3,28 @@ import math
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
-from models import SkSortFilterProxyModel, SkFilter
+from models import SkSortFilterProxyModel, SkFilter, SkTreeModel
 from skillion.tree import SkLibraryNode, SkFunctionNode
 from widgets import SkTreeViewHeaderContextMenu
+from skillion.io.backend import SkSqliteBackend
 
 class SkController(object):
-    def __init__(self, model, view):
+    TREE_COL_INDEX = 0
+    DESC_COL_INDEX = 1
+    TICK_COL_INDEX = 2
+    FIRST_DATA_COL_INDEX = 3
+
+    DESC_COL_WIDTH = 125
+    TICK_COL_WIDTH =  56
+    DATA_COL_WIDTH =  80
+
+    def __init__(self, view, model=None):
         super(SkController, self).__init__()
 
         self._model = model
         self._view  = view
         self._proxyModel = SkSortFilterProxyModel()
-        self._proxyModel.setSourceModel(model)
-        self._popupMenu = SkTreeViewHeaderContextMenu(view)
+        self._popupMenu  = SkTreeViewHeaderContextMenu(view)
         self._dynamicActions = {}
         
         tv = view.uiTreeView
@@ -27,23 +36,41 @@ class SkController(object):
 
         self.setupRowFilters()
 
-        self.connectTreeView()
-        self.connectViewMenu()
-        self.connectModelCheckboxes()
 # Plot clicks are connected with a HACK
 #        self.connectPlotClick()
         self.setupAxisScaleComboBoxes()
         self.setupAxisExtents()
-        self.setupEventSelectorComboBoxes()
 
+        self.connectFileMenu()
+        
         view.show()
-        view.mplWidget.drawAxes()
-        view.mplWidget.drawCpiLines()
+
+        self.setModel(model)
+
+
+    def setModel(self, model):
+        if model is None:
+            self.disableMerge()
+            return
+        self._model = model
+        self._proxyModel.setSourceModel(model)
+        self.connectViewMenu()
+        self.connectTreeView()
+        self.connectModelCheckboxes()
+        self.setupEventSelectorComboBoxes()
+        self._view.mplWidget.drawAxes()
+        self._view.mplWidget.drawCpiLines()
+        self.enableMerge()
+
+    def enableMerge(self):
+        self._view.actionMerge.setEnabled(True)
+
+    def disableMerge(self):
+        self._view.actionMerge.setEnabled(False)
 
 # Plot clicks are connected with a HACK
 #    def connectPlotClick(self):
 #        QtCore.QObject.connect(self._view.mplWidget, QtCore.SIGNAL('pointClicked(QModelIndex)'), self.plotClicked)
-
     def setupRowFilters(self):
         p = self._proxyModel
 
@@ -105,11 +132,11 @@ class SkController(object):
 
     def sizeTreeView(self, index):
         tv = self._view.uiTreeView
-        tv.resizeColumnToContents(0)
-        tv.setColumnWidth(1,125)
-        tv.setColumnWidth(2,56)
-        for i in range(3,self._model.columnCount()):
-            tv.setColumnWidth(i,80)
+        tv.resizeColumnToContents(SkController.TREE_COL_INDEX)
+        tv.setColumnWidth(SkController.DESC_COL_INDEX, SkController.DESC_COL_WIDTH)
+        tv.setColumnWidth(SkController.TICK_COL_INDEX, SkController.TICK_COL_WIDTH)
+        for i in range(SkController.FIRST_DATA_COL_INDEX, self._model.columnCount()):
+            tv.setColumnWidth(i,SkController.DATA_COL_WIDTH)
 
 
     def _addColumnAction(self, col):
@@ -137,6 +164,17 @@ class SkController(object):
 
 
 
+    def connectFileMenu(self):
+        v = self._view
+        QtCore.QObject.connect(v.actionOpen, QtCore.SIGNAL('triggered()'), self.openFile)
+
+
+    def openFile(self):
+        fname = QtGui.QFileDialog.getOpenFileName(self._view, 'Open File', '.')
+        rawDataTree = SkSqliteBackend.buildSkTree(fname)
+        self.setModel( SkTreeModel(rawDataTree) )
+
+
     def connectViewMenu(self):
         v = self._view
         QtCore.QObject.connect(v.actionShow_kernel_modules,   QtCore.SIGNAL('triggered()'), self.updateShowFlags)
@@ -153,6 +191,7 @@ class SkController(object):
         QtCore.QObject.connect(v.uiTreeView.header(), QtCore.SIGNAL('customContextMenuRequested(QPoint)'), self.showTreeHeaderMenu)
 
 
+
     def setColumnVisibility(self, action):
         assert isinstance(action, QtGui.QAction)
         column = action.data().toInt()[0]
@@ -160,6 +199,7 @@ class SkController(object):
             self._view.uiTreeView.header().showSection(column)
         else:
             self._view.uiTreeView.header().hideSection(column)
+
 
 
     def setRowVisibility(self, action):

@@ -7,6 +7,7 @@ from skillion.tree import SkTree, SkCommandNode, SkLibraryNode, SkFunctionNode
 class SkDatabaseError(SkError):
     pass
 
+
 class SkBackend(object):
     def __init__(self):
         super(SkBackend,self).__init__()
@@ -14,6 +15,22 @@ class SkBackend(object):
     @classmethod
     def buildSkTree(cls, datasource):
         raise SkAbstractMethodCalled()
+
+
+class SkFileBackend(SkBackend):
+    def __init__(self):
+        super(SkBackend,self).__init__()
+
+    @classmethod
+    def fileMagic(cls):
+        """
+        Returns the file "magic" (characteristic initial bytes)
+        associated with the kind of file that this backend can handle.
+
+        """
+
+        raise SkAbstractMethodCalled()
+
 
 
 class SkSqlBackend(SkBackend):
@@ -82,3 +99,24 @@ class SkSqlBackend(SkBackend):
                     dsoNode.appendChild(symNode)
 
         return root
+
+
+class SkSqliteBackend(SkSqlBackend):
+    @classmethod
+    def buildSkTree(cls, dbfile):
+        db = QtSql.QSqlDatabase.addDatabase("QSQLITE")
+        db.setDatabaseName(dbfile)
+        db.open()
+        tree = super(SkSqliteBackend,cls).buildSkTree(db)
+        db.close()
+        return tree
+
+    @classmethod
+    def fileMagic(cls):
+        return "SQLite format 3"
+
+
+class SkPerfBackend(SkFileBackend):
+    def fileMagic(cls):
+        return "PERFILE2h"
+

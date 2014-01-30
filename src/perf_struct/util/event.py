@@ -28,7 +28,7 @@ class PerfSample():
     def __init__(self, buf):
         if PerfSample._oneshot:
             alt = "=" + PerfSample._format.replace('P', 'Q')
-            print( len(buf), struct.calcsize(PerfSample._format), struct.calcsize(alt) )
+#            print( len(buf), struct.calcsize(PerfSample._format), struct.calcsize(alt) )
             # 120, 136, 114
             PerfSample._oneshot = False
 

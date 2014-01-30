@@ -123,7 +123,8 @@ def trace_begin():
         name   TEXT,
         symbol TEXT,
         comm   TEXT,
-        dso    TEXT
+        dso    TEXT,
+        period INT8
     );""")
 
 
@@ -152,6 +153,7 @@ def process_event(param_dict):
     ip    = sample.ip & MASK64_CLR_MSB
     pid   = sample.pid
     tid   = sample.tid
+    count = sample.period
     name  = param_dict["ev_name"]
     comm  = param_dict["comm"]
 
@@ -168,8 +170,8 @@ def process_event(param_dict):
 
     # Insert into event table:
     try:
-        con.execute("insert into event values(?, ?, ?, ?, ?, ?, ?, ?)",
-                (tsc, ip, pid, tid, name, symbol, comm, dso))
+        con.execute("insert into event values(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (tsc, ip, pid, tid, name, symbol, comm, dso, count))
     except:
         log('Caught exception: ' + sys.exc_info()[0])
 
